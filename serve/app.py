@@ -7,6 +7,12 @@ import pandas as pd
 from fastapi import FastAPI
 
 model = joblib.load(Path(__file__).resolve().parent / "model.joblib")
+threshold_data = json.loads(
+    (Path(__file__).resolve().parent / "threshold.json").read_text(encoding="utf-8")
+)
+decision_threshold = float(threshold_data["threshold"])
+if not 0 <= decision_threshold <= 1:
+    raise ValueError("The saved decision threshold must be between 0 and 1.")
 log_path = Path(os.environ.get("LOG_PATH", "/logs/requests.jsonl"))
 app = FastAPI()
 
@@ -21,5 +27,5 @@ def predict(row: dict):
         handle.write(json.dumps(row) + "\n")
     frame = pd.DataFrame([row])
     probability = float(model.predict_proba(frame)[0, 1])
-    label = "yes" if probability >= 0.5 else "no"
+    label = "yes" if probability >= decision_threshold else "no"
     return {"label": label, "probability": round(probability, 4)}
